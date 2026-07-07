@@ -731,6 +731,14 @@ func (a *AdminServer) buildWindowsEXE(ctx context.Context, hostHint string) (str
 	if err := os.MkdirAll(cfg.APKOutputDir, 0o755); err != nil {
 		return "", "", err
 	}
+	cacheRoot := filepath.Join(filepath.Dir(cfg.APKOutputDir), "go-cache")
+	modCacheRoot := filepath.Join(filepath.Dir(cfg.APKOutputDir), "go-mod-cache")
+	if err := os.MkdirAll(cacheRoot, 0o755); err != nil {
+		return "", "", err
+	}
+	if err := os.MkdirAll(modCacheRoot, 0o755); err != nil {
+		return "", "", err
+	}
 
 	fileName := sanitizeFilePrefix(cfg.APKFilePrefix) + "-windows-" + time.Now().Format("20060102-150405") + ".exe"
 	targetEXE := filepath.Join(cfg.APKOutputDir, fileName)
@@ -752,7 +760,15 @@ func (a *AdminServer) buildWindowsEXE(ctx context.Context, hostHint string) (str
 		".",
 	)
 	cmd.Dir = clientPath
-	cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=0")
+	cmd.Env = append(
+		os.Environ(),
+		"GOOS=windows",
+		"GOARCH=amd64",
+		"CGO_ENABLED=0",
+		"HOME="+filepath.Dir(cfg.APKOutputDir),
+		"GOCACHE="+cacheRoot,
+		"GOMODCACHE="+modCacheRoot,
+	)
 	output, err := cmd.CombinedOutput()
 	logBuilder.Write(output)
 	if err != nil {
