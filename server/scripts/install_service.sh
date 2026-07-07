@@ -36,6 +36,7 @@ chmod +x "${PROJECT_TARGET}/gradlew" "${PROJECT_TARGET}/server/scripts/"*.sh
 )
 
 "${INSTALL_ROOT}/solovpn-server" -config "${CONFIG_PATH}" -init-config
+install -m 0755 "${PROJECT_TARGET}/server/scripts/vpn.sh" /usr/bin/vpn
 cp "${PROJECT_TARGET}/server/systemd/solovpn.service" /etc/systemd/system/solovpn.service
 
 systemctl daemon-reload
@@ -44,5 +45,6 @@ echo
 echo "Solo VPN installed."
 echo "Config: ${CONFIG_PATH}"
 echo "Admin panel: http://SERVER_IP:8080"
+echo "Management command: sudo vpn"
 echo "Start service: sudo systemctl enable --now solovpn"
 echo "Open firewall ports: UDP 51820 and TCP 8080"

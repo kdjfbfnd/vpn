@@ -36,6 +36,28 @@ sudo cat /etc/solovpn/server.json
 http://SERVER_PUBLIC_IP:8080
 ```
 
+## 管理命令
+
+安装完成后，可以直接输入：
+
+```bash
+sudo vpn
+```
+
+进入交互式管理菜单。菜单支持启动、停止、重启、查看状态、查看日志、设置开机自启，以及修改 VPN UDP 隧道端口。
+
+也可以直接使用子命令：
+
+```bash
+sudo vpn status
+sudo vpn restart
+sudo vpn log
+sudo vpn port
+sudo vpn config
+```
+
+修改隧道端口时，`vpn` 命令会同时更新服务端监听端口和写入 APK 的客户端连接端口。端口修改后需要重启 `solovpn`，并重新构建 APK，让客户端使用新端口。
+
 ## 在服务器上构建 APK
 
 在管理面板中：
