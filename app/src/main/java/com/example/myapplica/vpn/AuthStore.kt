@@ -19,13 +19,20 @@ object AuthStore {
 
     fun apiBaseUrl(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val assetUrl = assetApiBaseUrl(context)
         val saved = prefs.getString(KEY_API_BASE_URL, null)
-        if (!saved.isNullOrBlank()) return saved
+        if (!saved.isNullOrBlank() && saved == assetUrl) return saved
 
+        prefs.edit().putString(KEY_API_BASE_URL, assetUrl).apply()
+        return assetUrl
+    }
+
+    private fun assetApiBaseUrl(context: Context): String {
         val raw = context.assets.open(DEFAULT_ASSET).bufferedReader().use { it.readText() }
-        val url = JSONObject(raw).optString("apiBaseUrl", "http://154.64.230.145:8080").trimEnd('/')
-        prefs.edit().putString(KEY_API_BASE_URL, url).apply()
-        return url
+        return JSONObject(raw)
+            .optString("apiBaseUrl", "http://154.64.230.145:8080")
+            .trim()
+            .trimEnd('/')
     }
 
     fun session(context: Context): AuthSession? {

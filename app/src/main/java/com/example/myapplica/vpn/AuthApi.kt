@@ -1,6 +1,7 @@
 package com.example.myapplica.vpn
 
 import android.content.Context
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -12,6 +13,11 @@ data class ConfigResult(
     val config: VpnConfig,
     val remainingMinutes: Int
 )
+
+class ApiException(
+    val statusCode: Int,
+    message: String
+) : Exception(message)
 
 object AuthApi {
     fun register(context: Context, username: String, password: String): AuthSession {
@@ -86,10 +92,24 @@ object AuthApi {
         val raw = stream?.use {
             BufferedReader(InputStreamReader(it, Charsets.UTF_8)).readText()
         }.orEmpty()
-        val json = if (raw.isBlank()) JSONObject() else JSONObject(raw)
+        val json = try {
+            if (raw.isBlank()) JSONObject() else JSONObject(raw)
+        } catch (_: JSONException) {
+            throw ApiException(code, "服务器返回异常，请检查管理端地址")
+        }
         if (code !in 200..299) {
-            error(json.optString("error", "请求失败"))
+            throw ApiException(code, friendlyError(code, json.optString("error")))
         }
         return json
+    }
+
+    private fun friendlyError(code: Int, error: String): String {
+        return when (code) {
+            HttpURLConnection.HTTP_UNAUTHORIZED -> "登录已失效，请重新登录"
+            HttpURLConnection.HTTP_PAYMENT_REQUIRED -> "连接时长不足，请联系管理员充值"
+            HttpURLConnection.HTTP_NOT_FOUND -> "服务器接口不存在，请检查管理端地址"
+            in 500..599 -> "服务器异常，请稍后重试"
+            else -> error.ifBlank { "请求失败（$code）" }
+        }
     }
 }

@@ -18,11 +18,13 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.example.myapplica.vpn.ApiException
 import com.example.myapplica.vpn.AuthApi
 import com.example.myapplica.vpn.AuthSession
 import com.example.myapplica.vpn.AuthStore
 import com.example.myapplica.vpn.SoloVpnService
 import com.example.myapplica.vpn.VpnConfigStore
+import java.net.HttpURLConnection
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
@@ -133,8 +135,9 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (error: Exception) {
                 runOnUiThread {
-                    updateStatus("操作失败")
-                    toast(error.message ?: "请求失败")
+                    val message = error.message ?: "请求失败"
+                    updateStatus(message)
+                    toast(message)
                 }
             } finally {
                 runOnUiThread { setAuthButtonsEnabled(true) }
@@ -187,13 +190,21 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (error: Exception) {
                 runOnUiThread {
-                    updateStatus("获取配置失败")
-                    toast(error.message ?: "获取配置失败")
+                    val message = vpnStartErrorMessage(error)
+                    updateStatus(message)
+                    toast(message)
                 }
             } finally {
                 runOnUiThread { startButton.isEnabled = true }
             }
         }
+    }
+
+    private fun vpnStartErrorMessage(error: Exception): String {
+        if (error is ApiException && error.statusCode == HttpURLConnection.HTTP_PAYMENT_REQUIRED) {
+            return "连接时长不足"
+        }
+        return error.message?.takeIf { it.isNotBlank() } ?: "获取配置失败"
     }
 
     private fun startVpnService() {
