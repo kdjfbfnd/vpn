@@ -1,15 +1,15 @@
-# Solo VPN Server
+# Solo VPN 服务端
 
-Target runtime: Ubuntu Server 22.04.
+目标运行环境：Ubuntu Server 22.04。
 
-The server has two parts:
+服务端包含两部分：
 
-- VPN data plane: a Go program creates a Linux TUN device and forwards Android IP packets through a custom UDP + AES-GCM protocol.
-- Admin panel: a browser panel saves build settings, runs Gradle on the server, and provides an APK download link. The APK is built with the server address already embedded.
+- VPN 数据面：Go 程序创建 Linux TUN 设备，并通过自定义 UDP + AES-GCM 协议转发 Android IP 数据包。
+- 管理面板：浏览器面板用于保存构建设置、在服务器上运行 Gradle，并提供 APK 下载链接。构建出的 APK 会预先写入服务器地址。
 
-## Deploy
+## 部署
 
-Upload the whole project directory to the server, then run these commands from the project root:
+将整个项目目录上传到服务器，然后在项目根目录执行：
 
 ```bash
 sudo bash server/scripts/install_android_sdk.sh
@@ -17,55 +17,55 @@ sudo bash server/scripts/install_service.sh
 sudo systemctl enable --now solovpn
 ```
 
-Open firewall ports:
+开放防火墙端口：
 
 ```bash
 sudo ufw allow 51820/udp
 sudo ufw allow 8080/tcp
 ```
 
-The admin username and generated password are stored in:
+管理面板的用户名和生成的密码保存在：
 
 ```bash
 sudo cat /etc/solovpn/server.json
 ```
 
-Admin panel:
+管理面板地址：
 
 ```text
 http://SERVER_PUBLIC_IP:8080
 ```
 
-## Build APK on the server
+## 在服务器上构建 APK
 
-In the admin panel:
+在管理面板中：
 
-1. Enter the public server IP or domain.
-2. Confirm the VPN UDP port. The default is `51820`.
-3. Click `Save settings`.
-4. Click `Build APK on server`.
-5. Download the latest APK after the build finishes.
+1. 输入服务器公网 IP 或域名。
+2. 确认 VPN UDP 端口，默认值为 `51820`。
+3. 点击 `Save settings`。
+4. 点击 `Build APK on server`。
+5. 构建完成后下载最新 APK。
 
-Before each build, the server rewrites:
+每次构建前，服务端都会重写：
 
 ```text
 app/src/main/assets/default_vpn_config.json
 ```
 
-The downloaded APK will start with server host, port, client virtual IP, DNS, MTU, and shared key already filled in.
+下载到的 APK 会预先填好服务器地址、端口、客户端虚拟 IP、DNS、MTU 和共享密钥。
 
-## Operations
+## 运维操作
 
-View logs:
+查看日志：
 
 ```bash
 sudo journalctl -u solovpn -f
 ```
 
-Restart:
+重启服务：
 
 ```bash
 sudo systemctl restart solovpn
 ```
 
-This is a custom VPN prototype, not a mature commercial VPN. It does not yet include key rotation, multi-client allocation, replay windows, roaming policy, or full auditing.
+这是一个自定义 VPN 原型，不是成熟的商用 VPN。当前还没有包含密钥轮换、多客户端地址分配、重放窗口、漫游策略或完整审计等能力。
