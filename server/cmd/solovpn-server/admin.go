@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"context"
@@ -34,6 +34,7 @@ type AdminServer struct {
 	buildRunning bool
 	lastLog      string
 	lastAPK      string
+	lastWindows  string
 }
 
 type androidAssetConfig struct {
@@ -107,6 +108,7 @@ func (a *AdminServer) index(w http.ResponseWriter, r *http.Request) {
 	buildRunning := a.buildRunning
 	lastLog := a.lastLog
 	lastAPK := a.lastAPK
+	lastWindows := a.lastWindows
 	a.buildMu.Unlock()
 
 	hostHint := hostWithoutPort(r.Host)
@@ -120,6 +122,7 @@ func (a *AdminServer) index(w http.ResponseWriter, r *http.Request) {
 		BuildRunning bool
 		LastLog      string
 		LastAPK      string
+		LastWindows  string
 		Users        []UserAccount
 	}{
 		Config:       cfg,
@@ -127,6 +130,7 @@ func (a *AdminServer) index(w http.ResponseWriter, r *http.Request) {
 		BuildRunning: buildRunning,
 		LastLog:      lastLog,
 		LastAPK:      lastAPK,
+		LastWindows:  lastWindows,
 		Users:        sortedUsers(cfg.Users),
 	}
 
@@ -606,8 +610,16 @@ func (a *AdminServer) startBuild(w http.ResponseWriter, r *http.Request) {
 	a.buildMu.Unlock()
 
 	hostHint := hostWithoutPort(r.Host)
+	target := strings.TrimSpace(r.FormValue("target"))
 	go func() {
-		logText, apk, err := a.buildAPK(context.Background(), hostHint)
+		var logText string
+		var artifact string
+		var err error
+		if target == "windows" {
+			logText, artifact, err = a.buildWindowsEXE(context.Background(), hostHint)
+		} else {
+			logText, artifact, err = a.buildAPK(context.Background(), hostHint)
+		}
 		if err != nil {
 			logText += "\nERROR: " + err.Error() + "\n"
 		}
@@ -616,7 +628,11 @@ func (a *AdminServer) startBuild(w http.ResponseWriter, r *http.Request) {
 		a.buildRunning = false
 		a.lastLog = logText
 		if err == nil {
-			a.lastAPK = apk
+			if target == "windows" {
+				a.lastWindows = artifact
+			} else {
+				a.lastAPK = artifact
+			}
 		}
 		a.buildMu.Unlock()
 	}()
@@ -691,6 +707,60 @@ func (a *AdminServer) buildAPK(ctx context.Context, hostHint string) (string, st
 	}
 
 	logBuilder.WriteString("\nAPK 构建完成: " + targetAPK + "\n")
+	return logBuilder.String(), fileName, nil
+}
+
+func (a *AdminServer) buildWindowsEXE(ctx context.Context, hostHint string) (string, string, error) {
+	a.mu.Lock()
+	cfg := *a.cfg
+	a.mu.Unlock()
+
+	host := strings.TrimSpace(cfg.PublicHost)
+	if host == "" {
+		host = hostHint
+	}
+	if net.ParseIP(host) == nil && strings.Contains(host, ":") {
+		return "", "", fmt.Errorf("publicHost should not include a port")
+	}
+
+	projectPath := filepath.Clean(cfg.AndroidProjectPath)
+	clientPath := filepath.Join(projectPath, "client", "windows")
+	if _, err := os.Stat(filepath.Join(clientPath, "go.mod")); err != nil {
+		return "", "", fmt.Errorf("windows client project not found at %s", clientPath)
+	}
+	if err := os.MkdirAll(cfg.APKOutputDir, 0o755); err != nil {
+		return "", "", err
+	}
+
+	fileName := sanitizeFilePrefix(cfg.APKFilePrefix) + "-windows-" + time.Now().Format("20060102-150405") + ".exe"
+	targetEXE := filepath.Join(cfg.APKOutputDir, fileName)
+	apiBaseURL := "http://" + host + adminListenPort(cfg.AdminListen)
+
+	var logBuilder strings.Builder
+	logBuilder.WriteString("正在构建 Windows 客户端 EXE...\n")
+	logBuilder.WriteString("内置 API 地址: " + apiBaseURL + "\n\n")
+
+	cmd := exec.CommandContext(
+		ctx,
+		"go",
+		"build",
+		"-trimpath",
+		"-ldflags",
+		"-s -w -H windowsgui -X main.defaultAPIBaseURL="+apiBaseURL,
+		"-o",
+		targetEXE,
+		".",
+	)
+	cmd.Dir = clientPath
+	cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=0")
+	output, err := cmd.CombinedOutput()
+	logBuilder.Write(output)
+	if err != nil {
+		return logBuilder.String(), "", err
+	}
+
+	logBuilder.WriteString("\nWindows EXE 构建完成: " + targetEXE + "\n")
+	logBuilder.WriteString("运行示例: solovpn-client.exe -username USER -password PASS\n")
 	return logBuilder.String(), fileName, nil
 }
 
@@ -1143,14 +1213,16 @@ var panelTemplate = template.Must(template.New("panel").Parse(`<!doctype html>
     <div class="section-head">
       <div>
         <h2>构建下载</h2>
-        <span class="muted">运行 Gradle 并发布最新调试安装包。</span>
+        <span class="muted">构建 Android APK 或 Windows EXE，并发布到下载目录。</span>
       </div>
     </div>
     <form method="post" action="/build">
       <div class="row">
-        <button class="secondary" type="submit" {{if .BuildRunning}}disabled{{end}}>在服务器上构建 APK</button>
+        <button class="secondary" type="submit" name="target" value="apk" {{if .BuildRunning}}disabled{{end}}>在服务器上构建 APK</button>
+        <button class="secondary" type="submit" name="target" value="windows" {{if .BuildRunning}}disabled{{end}}>构建 Windows EXE</button>
         {{if .BuildRunning}}<span>正在构建，请稍后刷新。</span>{{end}}
         {{if .LastAPK}}<a class="button" href="/download/{{.LastAPK}}">下载最新 APK</a>{{end}}
+        {{if .LastWindows}}<a class="button" href="/download/{{.LastWindows}}">下载最新 Windows EXE</a>{{end}}
       </div>
     </form>
     <pre>{{.LastLog}}</pre>
@@ -1158,4 +1230,3 @@ var panelTemplate = template.Must(template.New("panel").Parse(`<!doctype html>
 </main>
 </body>
 </html>`))
-

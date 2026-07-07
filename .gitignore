@@ -17,3 +17,5 @@ local.properties
 .local-tools
 *.log
 cloudflared.exe
+client/windows/solovpn-client.exe
+server/solovpn-server
