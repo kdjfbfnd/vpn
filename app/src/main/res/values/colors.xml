@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="solo_background_top">#F5F8FF</color>
+    <color name="solo_background_bottom">#EAF4F1</color>
+    <color name="solo_ink">#14213D</color>
+    <color name="solo_muted">#667085</color>
+    <color name="solo_card">#FFFFFFFF</color>
+    <color name="solo_card_stroke">#DCE5F2</color>
+    <color name="solo_primary">#126CFF</color>
+    <color name="solo_primary_dark">#0B4FC7</color>
+    <color name="solo_accent">#16A085</color>
+    <color name="solo_danger">#E5484D</color>
+    <color name="solo_field">#F8FAFC</color>
+</resources>

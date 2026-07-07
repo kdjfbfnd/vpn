@@ -1,0 +1,18 @@
+[Unit]
+Description=Solo VPN server and APK builder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/solovpn/project
+Environment=ANDROID_HOME=/opt/android-sdk
+Environment=ANDROID_SDK_ROOT=/opt/android-sdk
+Environment=JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ExecStartPre=/opt/solovpn/project/server/scripts/setup_network.sh 10.66.0.0/24
+ExecStart=/opt/solovpn/solovpn-server -config /etc/solovpn/server.json
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
